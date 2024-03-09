@@ -5,14 +5,21 @@ using System.Windows;
 using System.Windows.Input;
 using appfotboll5DataAccess;
 using System.Windows.Controls;
+using Google.Protobuf.WellKnownTypes;
+using Org.BouncyCastle.Asn1.X509;
+using System.Data.Common;
+using appfotboll5Models;
+using System.Xml.Linq;
 
 namespace appfotball5
 {
 
     public partial class MainWindow : Window
     {
+        public List<string> Options { get; set; }
+
         private readonly MySqlConnection connection;
-        private readonly MySqlDataAdapter matchesDataAdapter, playersDataAdapter, teamsDataAdapter;
+        private readonly MySqlDataAdapter adapter;
         private readonly DataSet dataSet;
         private string searchTxt;
 
@@ -23,11 +30,12 @@ namespace appfotball5
         public MainWindow()
         {
             InitializeComponent();
+            DataContext = this;
+
+            Options = new List<string> { "Option 1", "Option 2", "Option 3" };
 
             connection = DatabaseHelper.GetConnection();
-            matchesDataAdapter = new MySqlDataAdapter();
-            playersDataAdapter = new MySqlDataAdapter();
-            teamsDataAdapter = new MySqlDataAdapter();
+            adapter = new MySqlDataAdapter();
             dataSet = new DataSet();
 
            
@@ -52,9 +60,20 @@ namespace appfotball5
 
         private void LoadData()
         {
+            
             LoadMatchesData();
             LoadPlayersData();
-            LoadTeamsData();
+            AddTeams();
+        }
+
+        private void AddTeams()
+        {
+            string query = "SELECT * FROM team";
+            adapter.SelectCommand = new MySqlCommand(query, connection);
+            adapter.Fill(dataSet, "team");
+
+
+            Options = GetColumnValues<string>("team", "TeamName");
         }
 
         private void LoadMatchesData()
@@ -78,14 +97,19 @@ namespace appfotball5
                         $"OR C1.PlayerName LIKE '%{s}%' " +
                         $"OR C2.PlayerName LIKE '%{s}%';";
                 }
-                matchesDataAdapter.SelectCommand = new MySqlCommand(query, connection);
-                matchesDataAdapter.Fill(dataSet, "Match");
+                adapter.SelectCommand = new MySqlCommand(query, connection);
+                adapter.Fill(dataSet, "Match");
 
                 matchesDataGrid.ItemsSource = dataSet.Tables["Match"].DefaultView;
+                connection.Close();
             }
             catch (Exception ex)
             {
                 MessageBox.Show($"Error loading matches data: {ex.Message}");
+            }
+            finally
+            {
+                connection.Close();
             }
         }
 
@@ -105,48 +129,150 @@ namespace appfotball5
                     $"LEFT JOIN fotboll.player P ON T.TeamID = P.Team_TeamID " +
                     $"WHERE T.TeamName LIKE '%{s}%' OR P.PlayerName LIKE '%{s}%';";
                 }
-                playersDataAdapter.SelectCommand = new MySqlCommand(query, connection);
-                playersDataAdapter.Fill(dataSet, "Player");
+                adapter.SelectCommand = new MySqlCommand(query, connection);
+                adapter.Fill(dataSet, "alteredPlayer");
 
-                playersDataGrid.ItemsSource = dataSet.Tables["Player"].DefaultView;
+                playersDataGrid.ItemsSource = dataSet.Tables["alteredPlayer"].DefaultView;
+                connection.Close();
             }
             catch (Exception ex)
             {
                 MessageBox.Show($"Error loading players data: {ex.Message}");
             }
-        }
-
-        private void LoadTeamsData()
-        {
-            try
+            finally
             {
-                string query = "SELECT * FROM Team";
-
-                if (!string.IsNullOrEmpty(txtSearch.Text))
-                {
-                    var s = txtSearch.Text.Trim();
-                    query = $"SELECT DISTINCT T.* " +
-                    $"FROM fotboll.team T " +
-                    $"LEFT JOIN fotboll.player P ON T.TeamID = P.Team_TeamID " +
-                    $"WHERE T.TeamName LIKE '%{s}%' OR P.PlayerName LIKE '%{s}%';";
-                }
-                teamsDataAdapter.SelectCommand = new MySqlCommand(query, connection);
-                teamsDataAdapter.Fill(dataSet, "Team");
-
-                teamsDataGrid.ItemsSource = dataSet.Tables["Team"].DefaultView;
-            }
-            catch (Exception ex)
-            {
-                MessageBox.Show($"Error loading teams data: {ex.Message}");
+                connection.Close();
             }
         }
-
 
         private void txtSearch_TextChanged(object sender, System.Windows.Controls.TextChangedEventArgs e)
         {
             dataSet.Reset();
             LoadData();
         
+        }
+
+        private void InsertPlayer_Click(object sender, RoutedEventArgs e)
+        {
+            // Get the values from the TextBox and ComboBox
+            string name = playerName.Text;
+            string selectedOption = cmbOptions.SelectedItem as string;
+            int teamId = 0;
+
+            // Add your logic here to insert the changes into your data storage
+            // For now, let's display a message box with the selected values
+            MessageBox.Show($"Name: {name}\nSelected Option: {selectedOption}");
+            
+
+            var table = dataSet.Tables["team"];
+
+            foreach (DataRow row in table.Rows)
+            {
+                if ((string) row["TeamName"] == selectedOption)
+                {
+                    teamId = (int)row["TeamId"];
+                }
+            }
+
+            // Replace "YourPlayerTableName" with the actual player table name
+            var CommandText = "INSERT INTO fotboll.Player (Team_TeamID, PlayerName) VALUES (@TeamId, @PlayerName)";
+
+            var cmd = new MySqlCommand(CommandText, connection);
+            cmd.Connection = connection;
+
+            // Add parameters to the command to prevent SQL injection
+            cmd.Parameters.AddWithValue("@TeamId", teamId);
+            cmd.Parameters.AddWithValue("@PlayerName", name);
+
+            try
+            {
+                // Execute the INSERT query
+                connection.Open();
+                cmd.ExecuteNonQuery();
+                MessageBox.Show("Player inserted successfully.");
+                dataSet.Reset();
+                LoadData();
+
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"Error inserting player: {ex.Message}");
+            }
+            finally
+            {
+                // Close the connection
+                name = null;
+                selectedOption = null;
+                connection.Close();
+            }
+        }
+
+        private void InsertTeam_Click(object sender, RoutedEventArgs e)
+        {
+            // Get the values from the TextBox and ComboBox
+            string name = TeamName.Text;
+
+            var CommandText = "INSERT INTO fotboll.team (TeamName) VALUES (@TeamName)";
+
+            var cmd = new MySqlCommand(CommandText, connection);
+            cmd.Connection = connection;
+
+            // Add parameters to the command to prevent SQL injection
+            cmd.Parameters.AddWithValue("@TeamName", name);
+
+            try
+            {
+                // Execute the INSERT query
+                connection.Open();
+                cmd.ExecuteNonQuery();
+                MessageBox.Show("Player inserted successfully.");
+                dataSet.Reset();
+                LoadData();
+
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"Error inserting player: {ex.Message}");
+            }
+            finally
+            {
+                // Close the connection
+                name = null;
+                connection.Close();
+            }
+        }
+
+        public List<T> GetColumnValues<T>(string tableName, string columnName)
+        {
+            List<T> columnValues = new List<T>();
+
+            // Check if the specified table exists in the DataSet
+            if (dataSet.Tables.Contains(tableName))
+            {
+                DataTable table = dataSet.Tables[tableName];
+
+                // Check if the specified column exists in the table
+                if (table.Columns.Contains(columnName))
+                {
+                    foreach (DataRow row in table.Rows)
+                    {
+
+                        T columnvalue = (T)row[columnName]; 
+                        // Add the value of the specified column for each row
+                        columnValues.Add(columnvalue);
+                    }
+                }
+                else
+                {
+                    Console.WriteLine($"Column '{columnName}' not found in the table '{tableName}'.");
+                }
+            }
+            else
+            {
+                Console.WriteLine($"Table '{tableName}' not found in the DataSet.");
+            }
+
+            return columnValues;
         }
     }
 }
