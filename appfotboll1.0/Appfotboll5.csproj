@@ -14,4 +14,9 @@
     <PackageReference Include="RelayCommand" Version="1.0.2" />
   </ItemGroup>
 
+  <ItemGroup>
+    <Folder Include="services\" />
+    <Folder Include="Viewmodels\" />
+  </ItemGroup>
+
 </Project>

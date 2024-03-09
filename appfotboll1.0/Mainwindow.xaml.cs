@@ -8,14 +8,8 @@ using System.Windows.Controls;
 
 namespace appfotball5
 {
-    public interface IMainWindow
-    {
-        ICommand AddPlayerCommand { get; }
-        ICommand SearchCommand { get; }  // Added SearchCommand
-        void InitializeComponent();
-    }
 
-    public partial class MainWindow : Window, IMainWindow
+    public partial class MainWindow : Window
     {
         private readonly MySqlConnection connection;
         private readonly MySqlDataAdapter matchesDataAdapter, playersDataAdapter, teamsDataAdapter;
@@ -39,8 +33,6 @@ namespace appfotball5
            
 
             // Initialize Search command
-            SearchCommand = new RelayCommand(Search);
-
             InitializeDatabase();
             LoadData();
         }
@@ -149,78 +141,12 @@ namespace appfotball5
             }
         }
 
-        private void AddEntityButton_Click(object sender, RoutedEventArgs e)
-        {
-            entityPopup.IsOpen = !entityPopup.IsOpen;
-        }
 
         private void txtSearch_TextChanged(object sender, System.Windows.Controls.TextChangedEventArgs e)
         {
             dataSet.Reset();
             LoadData();
         
-    }
-
-        // Search logic for players and teams
-        private void Search(object parameter)
-        {
-            try
-            {
-                // Retrieve search query from txtSearch
-                string searchQuery = txtSearch.Text;
-
-                // Search players
-                string playerSearchQuery = $"SELECT * FROM Player WHERE PlayerName LIKE '%{searchQuery}%'";
-                playersDataAdapter.SelectCommand = new MySqlCommand(playerSearchQuery, connection);
-                dataSet.Tables["Player"].Clear();  // Clear existing data
-                playersDataAdapter.Fill(dataSet, "Player");
-                playersDataGrid.ItemsSource = dataSet.Tables["Player"].DefaultView;
-
-                // Search teams
-                string teamSearchQuery = $"SELECT * FROM Team WHERE TeamName LIKE '%{searchQuery}%'";
-                teamsDataAdapter.SelectCommand = new MySqlCommand(teamSearchQuery, connection);
-                dataSet.Tables["Team"].Clear();  // Clear existing data
-                teamsDataAdapter.Fill(dataSet, "Team");
-                teamsDataGrid.ItemsSource = dataSet.Tables["Team"].DefaultView;
-
-                MessageBox.Show($"Searching for: {searchQuery}");
-            }
-            catch (Exception ex)
-            {
-                MessageBox.Show($"Error searching: {ex.Message}");
-            }
-        }
-        private void CreateEntity_Click(object sender, RoutedEventArgs e)
-        {
-            // Retrieve selected entity type
-            string entityType = ((ComboBoxItem)entityTypeComboBox.SelectedItem)?.Content.ToString();
-
-            // Entity-specific fields
-            string teamSpecificField = teamSpecificTextBox.Text;
-
-            // Perform different actions based on the selected entity type
-            switch (entityType)
-            {
-                case "Team":
-                    // Handle creating a team with commonField and teamSpecificField
-                    MessageBox.Show($"Creating Team: Team-Specific Field - {teamSpecificField}");
-                    break;
-
-                default:
-                    MessageBox.Show("Invalid entity type selected.");
-                    break;
-            }
-
-            // Clear input fields
-            teamSpecificTextBox.Clear();
-        }
-
-        private void entityTypeComboBox_SelectionChanged(object sender, SelectionChangedEventArgs e)
-        {
-
-            string selectedEntityType = ((ComboBoxItem)entityTypeComboBox.SelectedItem)?.Content.ToString();
-
-            teamSpecificTextBox.Visibility = selectedEntityType == "Team" ? Visibility.Visible : Visibility.Collapsed;
         }
     }
 }
