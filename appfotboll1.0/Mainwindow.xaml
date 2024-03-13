@@ -3,7 +3,6 @@
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         Title="Appfotboll1.0" Height="450" Width="600">
 
-
     <Grid Margin="10">
         <Grid.RowDefinitions>
             <RowDefinition Height="Auto"/>
@@ -13,7 +12,6 @@
         </Grid.RowDefinitions>
 
         <!-- Insert Player Section -->
-        
         <StackPanel Grid.Row="0" Margin="20">
             <TextBlock Text="Insert Player" Foreground="Gray" FontWeight="Bold" FontSize="16" Margin="0,0,0,10"/>
             <StackPanel Orientation="Horizontal" Margin="5">
@@ -27,6 +25,7 @@
             <Button Content="Insert Player" Width="120" Margin="5" Height="30" Click="InsertPlayer_Click" HorizontalAlignment="Left"/>
         </StackPanel>
 
+        <!-- Insert Team Section -->
         <StackPanel Grid.Row="1" Margin="20">
             <TextBlock Text="Insert Team" Foreground="Gray" FontWeight="Bold" FontSize="16" Margin="0,0,0,10"/>
             <StackPanel Orientation="Horizontal" Margin="5">
@@ -36,17 +35,18 @@
             <Button Content="Add Team" Width="120" Margin="5" Height="30" Click="InsertTeam_Click" HorizontalAlignment="Left"/>
         </StackPanel>
 
-
         <!-- General Search -->
-        <StackPanel Grid.Row="2" Orientation="Horizontal">
+        <StackPanel Grid.Row="2" Orientation="Horizontal" Margin="0,10,0,0">
             <TextBlock Text="Search" Foreground="Gray" VerticalAlignment="Center"/>
             <TextBox x:Name="txtSearch" Width="500" TextChanged="txtSearch_TextChanged"/>
         </StackPanel>
-        
-        
-        <StackPanel Grid.Row="3" Orientation="Vertical">
-            <!-- DataGrids -->
-            <DataGrid x:Name="matchesDataGrid" Height="150" AutoGenerateColumns="True" Margin="0,10,0,0"/>
+
+        <!-- Remove Player Button -->
+        <Button Content="Remove Player" Width="100" Height="20" Click="RemovePlayer_Click" Margin="300,10,0,0" HorizontalAlignment="Left"/>
+
+        <!-- DataGrids Section -->
+        <StackPanel Grid.Row="3" Orientation="Vertical" Margin="0,10,0,0">
+            <DataGrid x:Name="matchesDataGrid" Height="150" AutoGenerateColumns="True"/>
             <DataGrid x:Name="playersDataGrid" Height="150" AutoGenerateColumns="True" Margin="0,10,0,0"/>
         </StackPanel>
     </Grid>

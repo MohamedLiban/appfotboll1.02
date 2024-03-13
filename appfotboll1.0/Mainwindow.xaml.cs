@@ -1,19 +1,13 @@
 ﻿using System;
+using System.Collections.Generic;
 using System.Data;
 using MySql.Data.MySqlClient;
 using System.Windows;
 using System.Windows.Input;
 using appfotboll5DataAccess;
-using System.Windows.Controls;
-using Google.Protobuf.WellKnownTypes;
-using Org.BouncyCastle.Asn1.X509;
-using System.Data.Common;
-using appfotboll5Models;
-using System.Xml.Linq;
 
 namespace appfotball5
 {
-
     public partial class MainWindow : Window
     {
         public List<string> Options { get; set; }
@@ -21,11 +15,6 @@ namespace appfotball5
         private readonly MySqlConnection connection;
         private readonly MySqlDataAdapter adapter;
         private readonly DataSet dataSet;
-        private string searchTxt;
-
-        // Add RelayCommand for AddPlayer command
-        public ICommand AddPlayerCommand { get; private set; }
-        public ICommand SearchCommand { get; private set; }  // Added SearchCommand
 
         public MainWindow()
         {
@@ -38,9 +27,6 @@ namespace appfotball5
             adapter = new MySqlDataAdapter();
             dataSet = new DataSet();
 
-           
-
-            // Initialize Search command
             InitializeDatabase();
             LoadData();
         }
@@ -60,7 +46,6 @@ namespace appfotball5
 
         private void LoadData()
         {
-            
             LoadMatchesData();
             LoadPlayersData();
             AddTeams();
@@ -72,7 +57,6 @@ namespace appfotball5
             adapter.SelectCommand = new MySqlCommand(query, connection);
             adapter.Fill(dataSet, "team");
 
-
             Options = GetColumnValues<string>("team", "TeamName");
         }
 
@@ -80,12 +64,11 @@ namespace appfotball5
         {
             try
             {
-
                 string query = "SELECT distinct B1.TeamName, B2.TeamName, A.ScoreTeam1, A.ScoreTeam2 FROM fotboll.match A " +
                         "JOIN fotboll.team B1 ON A.Team_TeamID1 = B1.TeamID " +
                         "JOIN fotboll.team B2 ON A.Team_TeamID2 = B2.TeamID;";
 
-                if (!string.IsNullOrEmpty(txtSearch.Text)) 
+                if (!string.IsNullOrEmpty(txtSearch.Text))
                 {
                     var s = txtSearch.Text.Trim();
                     query = "SELECT distinct B1.TeamName, B2.TeamName, A.ScoreTeam1, A.ScoreTeam2 FROM fotboll.match A " +
@@ -101,15 +84,10 @@ namespace appfotball5
                 adapter.Fill(dataSet, "Match");
 
                 matchesDataGrid.ItemsSource = dataSet.Tables["Match"].DefaultView;
-                connection.Close();
             }
             catch (Exception ex)
             {
                 MessageBox.Show($"Error loading matches data: {ex.Message}");
-            }
-            finally
-            {
-                connection.Close();
             }
         }
 
@@ -133,15 +111,10 @@ namespace appfotball5
                 adapter.Fill(dataSet, "alteredPlayer");
 
                 playersDataGrid.ItemsSource = dataSet.Tables["alteredPlayer"].DefaultView;
-                connection.Close();
             }
             catch (Exception ex)
             {
                 MessageBox.Show($"Error loading players data: {ex.Message}");
-            }
-            finally
-            {
-                connection.Close();
             }
         }
 
@@ -149,50 +122,42 @@ namespace appfotball5
         {
             dataSet.Reset();
             LoadData();
-        
         }
 
         private void InsertPlayer_Click(object sender, RoutedEventArgs e)
         {
-            // Get the values from the TextBox and ComboBox
             string name = playerName.Text;
             string selectedOption = cmbOptions.SelectedItem as string;
             int teamId = 0;
 
-            // Add your logic here to insert the changes into your data storage
-            // For now, let's display a message box with the selected values
             MessageBox.Show($"Name: {name}\nSelected Option: {selectedOption}");
-            
 
             var table = dataSet.Tables["team"];
 
             foreach (DataRow row in table.Rows)
             {
-                if ((string) row["TeamName"] == selectedOption)
+                if ((string)row["TeamName"] == selectedOption)
                 {
                     teamId = (int)row["TeamId"];
+                    break;
                 }
             }
 
-            // Replace "YourPlayerTableName" with the actual player table name
             var CommandText = "INSERT INTO fotboll.Player (Team_TeamID, PlayerName) VALUES (@TeamId, @PlayerName)";
 
             var cmd = new MySqlCommand(CommandText, connection);
             cmd.Connection = connection;
 
-            // Add parameters to the command to prevent SQL injection
             cmd.Parameters.AddWithValue("@TeamId", teamId);
             cmd.Parameters.AddWithValue("@PlayerName", name);
 
             try
             {
-                // Execute the INSERT query
                 connection.Open();
                 cmd.ExecuteNonQuery();
                 MessageBox.Show("Player inserted successfully.");
                 dataSet.Reset();
                 LoadData();
-
             }
             catch (Exception ex)
             {
@@ -200,16 +165,12 @@ namespace appfotball5
             }
             finally
             {
-                // Close the connection
-                name = null;
-                selectedOption = null;
                 connection.Close();
             }
         }
 
         private void InsertTeam_Click(object sender, RoutedEventArgs e)
         {
-            // Get the values from the TextBox and ComboBox
             string name = TeamName.Text;
 
             var CommandText = "INSERT INTO fotboll.team (TeamName) VALUES (@TeamName)";
@@ -217,27 +178,22 @@ namespace appfotball5
             var cmd = new MySqlCommand(CommandText, connection);
             cmd.Connection = connection;
 
-            // Add parameters to the command to prevent SQL injection
             cmd.Parameters.AddWithValue("@TeamName", name);
 
             try
             {
-                // Execute the INSERT query
                 connection.Open();
                 cmd.ExecuteNonQuery();
-                MessageBox.Show("Player inserted successfully.");
+                MessageBox.Show("Team inserted successfully.");
                 dataSet.Reset();
                 LoadData();
-
             }
             catch (Exception ex)
             {
-                MessageBox.Show($"Error inserting player: {ex.Message}");
+                MessageBox.Show($"Error inserting team: {ex.Message}");
             }
             finally
             {
-                // Close the connection
-                name = null;
                 connection.Close();
             }
         }
@@ -246,19 +202,15 @@ namespace appfotball5
         {
             List<T> columnValues = new List<T>();
 
-            // Check if the specified table exists in the DataSet
             if (dataSet.Tables.Contains(tableName))
             {
                 DataTable table = dataSet.Tables[tableName];
 
-                // Check if the specified column exists in the table
                 if (table.Columns.Contains(columnName))
                 {
                     foreach (DataRow row in table.Rows)
                     {
-
-                        T columnvalue = (T)row[columnName]; 
-                        // Add the value of the specified column for each row
+                        T columnvalue = (T)row[columnName];
                         columnValues.Add(columnvalue);
                     }
                 }
@@ -274,5 +226,67 @@ namespace appfotball5
 
             return columnValues;
         }
+
+        // Add Remove Player Button Click Event Handler
+        private void RemovePlayer_Click(object sender, RoutedEventArgs e)
+        {
+            // Get the selected player from the DataGrid
+            DataRowView selectedPlayer = (DataRowView)playersDataGrid.SelectedItem;
+
+            if (selectedPlayer != null)
+            {
+                // Get the player's ID and name
+                int playerId = (int)selectedPlayer["PlayerID"];
+                string playerName = (string)selectedPlayer["PlayerName"];
+
+                // Confirm the removal with the user
+                MessageBoxResult result = MessageBox.Show($"Are you sure you want to remove the player '{playerName}'?", "Confirmation", MessageBoxButton.YesNo, MessageBoxImage.Question);
+
+                if (result == MessageBoxResult.Yes)
+                {
+                    // Add your logic here to remove the player from the database
+                    RemovePlayerFromDatabase(playerId);
+
+                    // Reset data and reload
+                    dataSet.Reset();
+                    LoadData();
+                }
+            }
+            else
+            {
+                MessageBox.Show("Please select a player to remove.", "Information", MessageBoxButton.OK, MessageBoxImage.Information);
+            }
+        }
+
+        // Add Remove Player From Database Logic
+        private void RemovePlayerFromDatabase(int playerId)
+        {
+            // Replace "YourPlayerTableName" with the actual player table name
+            string commandText = "DELETE FROM fotboll.Player WHERE PlayerID = @PlayerId";
+
+            using (MySqlCommand cmd = new MySqlCommand(commandText, connection))
+            {
+                // Add parameters to the command to prevent SQL injection
+                cmd.Parameters.AddWithValue("@PlayerId", playerId);
+
+                try
+                {
+                    // Execute the DELETE query
+                    connection.Open();
+                    cmd.ExecuteNonQuery();
+                    MessageBox.Show("Player removed successfully.");
+                }
+                catch (Exception ex)
+                {
+                    MessageBox.Show($"Error removing player: {ex.Message}");
+                }
+                finally
+                {
+                    // Close the connection
+                    connection.Close();
+                }
+            }
+        }
+
     }
 }
