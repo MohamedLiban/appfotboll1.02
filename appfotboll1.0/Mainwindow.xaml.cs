@@ -198,56 +198,31 @@ namespace appfotball5
             }
         }
 
-        public List<T> GetColumnValues<T>(string tableName, string columnName)
-        {
-            List<T> columnValues = new List<T>();
-
-            if (dataSet.Tables.Contains(tableName))
-            {
-                DataTable table = dataSet.Tables[tableName];
-
-                if (table.Columns.Contains(columnName))
-                {
-                    foreach (DataRow row in table.Rows)
-                    {
-                        T columnvalue = (T)row[columnName];
-                        columnValues.Add(columnvalue);
-                    }
-                }
-                else
-                {
-                    Console.WriteLine($"Column '{columnName}' not found in the table '{tableName}'.");
-                }
-            }
-            else
-            {
-                Console.WriteLine($"Table '{tableName}' not found in the DataSet.");
-            }
-
-            return columnValues;
-        }
-
-        // Add Remove Player Button Click Event Handler
         private void RemovePlayer_Click(object sender, RoutedEventArgs e)
         {
-            // Get the selected player from the DataGrid
+            
             DataRowView selectedPlayer = (DataRowView)playersDataGrid.SelectedItem;
 
             if (selectedPlayer != null)
             {
-                // Get the player's ID and name
                 int playerId = (int)selectedPlayer["PlayerID"];
                 string playerName = (string)selectedPlayer["PlayerName"];
 
-                // Confirm the removal with the user
                 MessageBoxResult result = MessageBox.Show($"Are you sure you want to remove the player '{playerName}'?", "Confirmation", MessageBoxButton.YesNo, MessageBoxImage.Question);
 
                 if (result == MessageBoxResult.Yes)
                 {
-                    // Add your logic here to remove the player from the database
-                    RemovePlayerFromDatabase(playerId);
+                    if (playerId > 0)
+                    {
+                       
+                        RemovePlayerFromDatabase(playerId);
+                    }
+                    else
+                    {
+                        RemovePlayerFromDataTable(playerId);
+                    }
 
-                    // Reset data and reload
+                    
                     dataSet.Reset();
                     LoadData();
                 }
@@ -258,35 +233,53 @@ namespace appfotball5
             }
         }
 
-        // Add Remove Player From Database Logic
         private void RemovePlayerFromDatabase(int playerId)
         {
-            // Replace "YourPlayerTableName" with the actual player table name
-            string commandText = "DELETE FROM fotboll.Player WHERE PlayerID = @PlayerId";
-
-            using (MySqlCommand cmd = new MySqlCommand(commandText, connection))
+            try
             {
-                // Add parameters to the command to prevent SQL injection
-                cmd.Parameters.AddWithValue("@PlayerId", playerId);
+                // Create a command to delete the player from the database
+                var CommandText = "DELETE FROM fotboll.Player WHERE PlayerID = @PlayerID";
 
-                try
-                {
-                    // Execute the DELETE query
-                    connection.Open();
-                    cmd.ExecuteNonQuery();
-                    MessageBox.Show("Player removed successfully.");
-                }
-                catch (Exception ex)
-                {
-                    MessageBox.Show($"Error removing player: {ex.Message}");
-                }
-                finally
-                {
-                    // Close the connection
-                    connection.Close();
-                }
+                var cmd = new MySqlCommand(CommandText, connection);
+                cmd.Connection = connection;
+
+                // Add parameter to the command to prevent SQL injection
+                cmd.Parameters.AddWithValue("@PlayerID", playerId);
+
+                // Execute the DELETE query
+                connection.Open();
+                cmd.ExecuteNonQuery();
+                MessageBox.Show("Player removed from the database successfully.");
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"Error removing player from the database: {ex.Message}");
+            }
+            finally
+            {
+                // Close the connection
+                connection.Close();
             }
         }
 
+        private void RemovePlayerFromDataTable(int playerId)
+        {
+            try
+            {
+                // Find and remove the player from the local DataTable
+                var table = dataSet.Tables["alteredPlayer"];
+                var row = table.Select($"PlayerID = {playerId}").FirstOrDefault();
+
+                if (row != null)
+                {
+                    row.Delete();
+                    MessageBox.Show("Player removed from the local DataTable successfully.");
+                }
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"Error removing player from the local DataTable: {ex.Message}");
+            }
+        }
     }
 }
