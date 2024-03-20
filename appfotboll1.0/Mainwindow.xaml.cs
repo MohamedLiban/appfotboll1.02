@@ -5,6 +5,7 @@ using MySql.Data.MySqlClient;
 using System.Windows;
 using System.Windows.Input;
 using appfotboll5DataAccess;
+using System.Windows.Controls;
 
 namespace appfotball5
 {
@@ -21,7 +22,7 @@ namespace appfotball5
             InitializeComponent();
             DataContext = this;
 
-            Options = new List<string> { "Option 1", "Option 2", "Option 3" };
+            Options = new List<string> { "Ac Milan", "Juventus", "Real Madrid" };
 
             connection = DatabaseHelper.GetConnection();
             adapter = new MySqlDataAdapter();
@@ -35,12 +36,22 @@ namespace appfotball5
         {
             try
             {
-                connection.Open();
+                if (connection.State != ConnectionState.Open)
+                {
+                    connection.Open();
+                }
             }
             catch (Exception ex)
             {
                 MessageBox.Show($"Error connecting to the database: {ex.Message}");
                 Application.Current.Shutdown();
+            }
+            finally
+            {
+                if (connection.State == ConnectionState.Open)
+                {
+                    connection.Close();
+                }
             }
         }
 
@@ -53,17 +64,39 @@ namespace appfotball5
 
         private void AddTeams()
         {
-            string query = "SELECT * FROM team";
-            adapter.SelectCommand = new MySqlCommand(query, connection);
-            adapter.Fill(dataSet, "team");
+            try
+            {
+                if (connection.State != ConnectionState.Open)
+                {
+                    connection.Open();
+                }
 
-            Options = GetColumnValues<string>("team", "TeamName");
+                string query = "SELECT * FROM team";
+                adapter.SelectCommand = new MySqlCommand(query, connection);
+                adapter.Fill(dataSet, "team");
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"Error loading teams data: {ex.Message}");
+            }
+            finally
+            {
+                if (connection.State == ConnectionState.Open)
+                {
+                    connection.Close();
+                }
+            }
         }
 
         private void LoadMatchesData()
         {
             try
             {
+                if (connection.State != ConnectionState.Open)
+                {
+                    connection.Open();
+                }
+
                 string query = "SELECT distinct B1.TeamName, B2.TeamName, A.ScoreTeam1, A.ScoreTeam2 FROM fotboll.match A " +
                         "JOIN fotboll.team B1 ON A.Team_TeamID1 = B1.TeamID " +
                         "JOIN fotboll.team B2 ON A.Team_TeamID2 = B2.TeamID;";
@@ -89,20 +122,32 @@ namespace appfotball5
             {
                 MessageBox.Show($"Error loading matches data: {ex.Message}");
             }
+            finally
+            {
+                if (connection.State == ConnectionState.Open)
+                {
+                    connection.Close();
+                }
+            }
         }
 
         private void LoadPlayersData()
         {
             try
             {
-                string query = $"SELECT DISTINCT T.TeamName, P.PlayerName " +
+                if (connection.State != ConnectionState.Open)
+                {
+                    connection.Open();
+                }
+
+                string query = $"SELECT DISTINCT T.TeamName, P.PlayerName, P.PlayerID " +
                     $"FROM fotboll.team T " +
                     $"LEFT JOIN fotboll.player P ON T.TeamID = P.Team_TeamID;";
 
                 if (!string.IsNullOrEmpty(txtSearch.Text))
                 {
                     var s = txtSearch.Text.Trim();
-                    query = $"SELECT DISTINCT T.TeamName, P.PlayerName " +
+                    query = $"SELECT DISTINCT T.TeamName, P.PlayerName, P.PlayerID " +
                     $"FROM fotboll.team T " +
                     $"LEFT JOIN fotboll.player P ON T.TeamID = P.Team_TeamID " +
                     $"WHERE T.TeamName LIKE '%{s}%' OR P.PlayerName LIKE '%{s}%';";
@@ -116,6 +161,13 @@ namespace appfotball5
             {
                 MessageBox.Show($"Error loading players data: {ex.Message}");
             }
+            finally
+            {
+                if (connection.State == ConnectionState.Open)
+                {
+                    connection.Close();
+                }
+            }
         }
 
         private void txtSearch_TextChanged(object sender, System.Windows.Controls.TextChangedEventArgs e)
@@ -126,34 +178,38 @@ namespace appfotball5
 
         private void InsertPlayer_Click(object sender, RoutedEventArgs e)
         {
-            string name = playerName.Text;
-            string selectedOption = cmbOptions.SelectedItem as string;
-            int teamId = 0;
-
-            MessageBox.Show($"Name: {name}\nSelected Option: {selectedOption}");
-
-            var table = dataSet.Tables["team"];
-
-            foreach (DataRow row in table.Rows)
-            {
-                if ((string)row["TeamName"] == selectedOption)
-                {
-                    teamId = (int)row["TeamId"];
-                    break;
-                }
-            }
-
-            var CommandText = "INSERT INTO fotboll.Player (Team_TeamID, PlayerName) VALUES (@TeamId, @PlayerName)";
-
-            var cmd = new MySqlCommand(CommandText, connection);
-            cmd.Connection = connection;
-
-            cmd.Parameters.AddWithValue("@TeamId", teamId);
-            cmd.Parameters.AddWithValue("@PlayerName", name);
-
             try
             {
-                connection.Open();
+                if (connection.State != ConnectionState.Open)
+                {
+                    connection.Open();
+                }
+
+                string name = playerName.Text;
+                string selectedOption = cmbOptions.SelectedItem as string;
+                int teamId = 0;
+
+                MessageBox.Show($"Name: {name}\nSelected Option: {selectedOption}");
+
+                var table = dataSet.Tables["team"];
+
+                foreach (DataRow row in table.Rows)
+                {
+                    if ((string)row["TeamName"] == selectedOption)
+                    {
+                        teamId = (int)row["TeamId"];
+                        break;
+                    }
+                }
+
+                var CommandText = "INSERT INTO fotboll.Player (Team_TeamID, PlayerName) VALUES (@TeamId, @PlayerName)";
+
+                var cmd = new MySqlCommand(CommandText, connection);
+                cmd.Connection = connection;
+
+                cmd.Parameters.AddWithValue("@TeamId", teamId);
+                cmd.Parameters.AddWithValue("@PlayerName", name);
+
                 cmd.ExecuteNonQuery();
                 MessageBox.Show("Player inserted successfully.");
                 dataSet.Reset();
@@ -165,24 +221,31 @@ namespace appfotball5
             }
             finally
             {
-                connection.Close();
+                if (connection.State == ConnectionState.Open)
+                {
+                    connection.Close();
+                }
             }
         }
 
         private void InsertTeam_Click(object sender, RoutedEventArgs e)
         {
-            string name = TeamName.Text;
-
-            var CommandText = "INSERT INTO fotboll.team (TeamName) VALUES (@TeamName)";
-
-            var cmd = new MySqlCommand(CommandText, connection);
-            cmd.Connection = connection;
-
-            cmd.Parameters.AddWithValue("@TeamName", name);
-
             try
             {
-                connection.Open();
+                if (connection.State != ConnectionState.Open)
+                {
+                    connection.Open();
+                }
+
+                string name = TeamName.Text;
+
+                var CommandText = "INSERT INTO fotboll.team (TeamName) VALUES (@TeamName)";
+
+                var cmd = new MySqlCommand(CommandText, connection);
+                cmd.Connection = connection;
+
+                cmd.Parameters.AddWithValue("@TeamName", name);
+
                 cmd.ExecuteNonQuery();
                 MessageBox.Show("Team inserted successfully.");
                 dataSet.Reset();
@@ -194,91 +257,136 @@ namespace appfotball5
             }
             finally
             {
-                connection.Close();
+                if (connection.State == ConnectionState.Open)
+                {
+                    connection.Close();
+                }
             }
         }
 
         private void RemovePlayer_Click(object sender, RoutedEventArgs e)
         {
-            
-            DataRowView selectedPlayer = (DataRowView)playersDataGrid.SelectedItem;
-
-            if (selectedPlayer != null)
+            try
             {
-                int playerId = (int)selectedPlayer["PlayerID"];
-                string playerName = (string)selectedPlayer["PlayerName"];
+                
+                DataRowView selectedPlayer = (DataRowView)playersDataGrid.SelectedItem;
 
-                MessageBoxResult result = MessageBox.Show($"Are you sure you want to remove the player '{playerName}'?", "Confirmation", MessageBoxButton.YesNo, MessageBoxImage.Question);
-
-                if (result == MessageBoxResult.Yes)
+                if (selectedPlayer != null)
                 {
-                    if (playerId > 0)
-                    {
-                       
-                        RemovePlayerFromDatabase(playerId);
-                    }
-                    else
-                    {
-                        RemovePlayerFromDataTable(playerId);
-                    }
+                    
+                    string playerName = selectedPlayer["PlayerName"].ToString();
 
                     
-                    dataSet.Reset();
-                    LoadData();
+                    RemovePlayer(playerName);
+                }
+                else
+                {
+                    MessageBox.Show("Please select a player to remove.", "Information", MessageBoxButton.OK, MessageBoxImage.Information);
                 }
             }
-            else
+            catch (Exception ex)
             {
-                MessageBox.Show("Please select a player to remove.", "Information", MessageBoxButton.OK, MessageBoxImage.Information);
+                MessageBox.Show($"Error removing player: {ex.Message}");
             }
         }
 
-        private void RemovePlayerFromDatabase(int playerId)
+        private void RemovePlayer(string playerName)
         {
             try
             {
-                // Create a command to delete the player from the database
-                var CommandText = "DELETE FROM fotboll.Player WHERE PlayerID = @PlayerID";
+                if (connection.State != ConnectionState.Open)
+                {
+                    connection.Open();
+                }
 
-                var cmd = new MySqlCommand(CommandText, connection);
-                cmd.Connection = connection;
+                
+                if (IsPlayerInDatabase(playerName))
+                {
+                    
+                    RemovePlayerFromDatabase(playerName);
+                }
+                else
+                {
+                    
+                    RemovePlayerFromDataTable(playerName);
+                }
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"Error removing player: {ex.Message}");
+            }
+            finally
+            {
+                if (connection.State == ConnectionState.Open)
+                {
+                    connection.Close();
+                }
+            }
+        }
 
-                // Add parameter to the command to prevent SQL injection
-                cmd.Parameters.AddWithValue("@PlayerID", playerId);
+        private bool IsPlayerInDatabase(string playerName)
+        {
+            try
+            {
+                string query = "SELECT COUNT(*) FROM fotboll.Player WHERE PlayerName = @PlayerName";
+                using (MySqlCommand cmd = new MySqlCommand(query, connection))
+                {
+                    cmd.Parameters.AddWithValue("@PlayerName", playerName);
+                    object result = cmd.ExecuteScalar();
+                    if (result != null && result != DBNull.Value)
+                    {
+                        int count = Convert.ToInt32(result);
+                        return count > 0;
+                    }
+                    return false;
+                }
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"Error checking if player exists: {ex.Message}");
+                return false;
+            }
+        }
 
-                // Execute the DELETE query
-                connection.Open();
-                cmd.ExecuteNonQuery();
-                MessageBox.Show("Player removed from the database successfully.");
+        private void RemovePlayerFromDatabase(string playerName)
+        {
+            try
+            {
+                string commandText = "DELETE FROM fotboll.Player WHERE PlayerName = @PlayerName";
+                using (MySqlCommand cmd = new MySqlCommand(commandText, connection))
+                {
+                    cmd.Parameters.AddWithValue("@PlayerName", playerName);
+                    cmd.ExecuteNonQuery();
+                    MessageBox.Show("Player removed successfully from the database.");
+                }
             }
             catch (Exception ex)
             {
                 MessageBox.Show($"Error removing player from the database: {ex.Message}");
             }
-            finally
-            {
-                // Close the connection
-                connection.Close();
-            }
         }
 
-        private void RemovePlayerFromDataTable(int playerId)
+        private void RemovePlayerFromDataTable(string playerName)
         {
             try
             {
-                // Find and remove the player from the local DataTable
-                var table = dataSet.Tables["alteredPlayer"];
-                var row = table.Select($"PlayerID = {playerId}").FirstOrDefault();
-
-                if (row != null)
+                
+                DataRow[] rows = dataSet.Tables["alteredPlayer"].Select($"PlayerName = '{playerName}'");
+                foreach (DataRow row in rows)
                 {
                     row.Delete();
-                    MessageBox.Show("Player removed from the local DataTable successfully.");
                 }
+
+                
+                MySqlCommandBuilder builder = new MySqlCommandBuilder(adapter);
+                adapter.UpdateCommand = builder.GetUpdateCommand();
+                adapter.DeleteCommand = builder.GetDeleteCommand();
+                adapter.Update(dataSet, "alteredPlayer");
+                MessageBox.Show("Player removed successfully from the local DataTable and database.");
             }
             catch (Exception ex)
             {
-                MessageBox.Show($"Error removing player from the local DataTable: {ex.Message}");
+                MessageBox.Show($"Error updating the database: {ex.Message}");
             }
         }
     }
